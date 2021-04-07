@@ -1,0 +1,55 @@
+---
+title: "BiomaRt on somules"
+output: html_document
+---
+
+In this file I am going to use r to access WBPS and get gene descriptions etc for the marker genes
+
+```{r}
+library(biomaRt) #initialise biomaRt
+
+```
+
+```{r}
+#Establish a connection to the WormBase ParaSite BioMart
+mart <- useMart("parasite_mart", dataset = "wbps_gene", host = "https://parasite.wormbase.org", port = 443)
+```
+
+List the available filters and attributes
+```{r}
+listFilters(mart)
+listAttributes(mart)
+```
+An example: get all the S. mansoni genes with a C. elegans orthologue
+```{r}
+genes <- getBM(mart = mart, 
+               filters = c("species_id_1010", "only_caelegprjna13758_homologue"),
+               value = list("scmansprjea36577", TRUE),
+               attributes = c("wbps_gene_id", "caelegprjna13758_gene", "caelegprjna13758_gene_name"))
+head(genes)
+```
+
+Now I'm going to try and write my own query.
+```{r}
+schistogenes <- getBM(mart = mart, 
+               filters = c("species_id_1010", "only_caelegprjna13758_homologue"),
+               value = list("scmansprjea36577", TRUE),
+               attributes = c("wbps_gene_id","external_gene_id", "external_gene_db", "description", "embl", "go_accession", "go_name_1006", "go_definition_1006", "go_linkage_type", "go_namespace_1003"))
+head(schistogenes)
+```
+Now I want to join this with the top markers to add info to these markers
+
+```{r}
+#top5_roc
+top5_roc$gene <- gsub('\\-', '_', top5_roc$gene) #replace dashes with underscores
+top5_wthInfo <- top5_roc %>% left_join(schistogenes, by = c("gene" = "wbps_gene_id")) #join the info file from wbps to the top5 marker info
+write.csv(x=top5_wthInfo, file="top5_wthInfo.csv") #save this as a csv
+```
+
+```{r}
+carm_clust <- read.csv("somule_seurat markers.csv", stringsAsFactors = FALSE, header = TRUE) #import the marker data from somule papaer
+
+checking_file <- top5_roc %>% left_join(carm_clust, by = c("gene" = "Gene.identifier")) #check the top 5 marker genes are also in the somule paper
+```
+
+
